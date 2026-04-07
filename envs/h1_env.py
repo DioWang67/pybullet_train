@@ -63,6 +63,10 @@ class H1Env(WalkingEnv):
             # 鎖定手臂/軀幹關節 (joints 10-18)
             if self.robot_config.lock_joints:
                 self.robot_simulator.lock_joints(self.robot_config.lock_joints)
+            # 移除手臂質量（11-18），保留軀幹(10)維持正確重心
+            arm_joints = [j for j in self.robot_config.lock_joints if j != 10]
+            for j in arm_joints:
+                self.robot_simulator.set_dynamics(j, mass=0.0)
 
     def _settle(self) -> None:
         settle_steps = int(0.3 * self.robot_config.physics.physics_hz)
