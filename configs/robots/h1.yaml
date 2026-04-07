@@ -37,17 +37,19 @@ max_torque: [200.0, 200.0, 200.0, 300.0, 40.0, 200.0, 200.0, 200.0, 300.0, 40.0]
 
 # 站立姿態 (全部關節歸零)
 # H1 設計上所有關節歸零時自然站立
+# 微蹲姿態：HipPitch 前傾 + Knee 微彎 + Ankle 補償
+# 讓機器人重心在腳掌中前方，避免往後倒
 stand_pose:
-  0:  0.0
-  1:  0.0
-  2:  0.0
-  3:  0.0
-  4:  0.0
-  5:  0.0
-  6:  0.0
-  7:  0.0
-  8:  0.0
-  9:  0.0
+  0:  0.0     # L HipYaw
+  1:  0.0     # L HipRoll
+  2:  0.3     # L HipPitch (前傾)
+  3: -0.6     # L Knee (微蹲)
+  4:  0.3     # L Ankle (補償)
+  5:  0.0     # R HipYaw
+  6:  0.0     # R HipRoll
+  7:  0.3     # R HipPitch
+  8: -0.6     # R Knee
+  9:  0.3     # R Ankle
   10: 0.0
   11: 0.0
   12: 0.0
@@ -74,11 +76,11 @@ action_dim: 0  # 0 表示使用 len(active_joints) = 10
 
 # ── 獎勵參數 ────────────────────────────────────────────────────────────
 reward:
-  alive_bonus: 2.0              # 每步存活獎勵
-  height_reward_scale: 3.0      # (z - 0.50) * 3.0
-  forward_reward_scale: 1.5     # vx * 1.5
-  smooth_penalty_scale: 0.001   # 0.001 * ||torque||²
-  death_penalty: -30.0          # 倒下時的終止懲罰
+  alive_bonus: 1.0              # 降低純站立獎勵，避免機器人只求不倒
+  height_reward_scale: 2.0      # 站立高度獎勵
+  forward_reward_scale: 4.0     # 大幅提升前進獎勵，強迫機器人往前走
+  smooth_penalty_scale: 0.0001  # 降低 10x：之前過重導致機器人不敢動
+  death_penalty: -10.0          # 降低死亡懲罰：過高會讓機器人太保守
 
 # ── 額外元資料 ──────────────────────────────────────────────────────────
 metadata:
