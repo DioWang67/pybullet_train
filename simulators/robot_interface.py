@@ -455,15 +455,15 @@ class PyBulletRobotSimulator(RobotInterface):
             )
 
     def lock_joints(self, joint_indices: list) -> None:
-        """用位置控制鎖定指定關節在 0 位（如手臂）"""
+        """用高剛度位置控制鎖定指定關節在 0 位（如手臂/軀幹）"""
         for j in joint_indices:
             p.setJointMotorControl2(
                 self._robot_id,
                 j,
                 controlMode=p.POSITION_CONTROL,
                 targetPosition=0.0,
-                positionGain=1.0,
-                velocityGain=0.1,
-                force=200.0,
+                positionGain=50.0,   # 高剛度，防止上半身下垂
+                velocityGain=5.0,
+                force=500.0,
                 physicsClientId=self._client,
             )
