@@ -229,27 +229,49 @@ class PyBulletRobotSimulator(RobotInterface):
             self._client = -1
     
     def reset(self, base_pos: np.ndarray, base_orn: np.ndarray) -> None:
-        """重設模擬環境和機器人"""
-        p.resetSimulation(physicsClientId=self._client)
-        self._setup_physics()
+        """重設模擬環境和機器人。
 
-        # 加載地面
-        self._plane_id = p.loadURDF("plane.urdf", physicsClientId=self._client)
-        p.changeDynamics(
-            self._plane_id, -1,
-            lateralFriction=0.8,
-            restitution=0.0,
-            physicsClientId=self._client,
-        )
-        
-        # 加載機器人
-        from robot_descriptions.loaders.pybullet import load_robot_description
-        self._robot_id = load_robot_description(
-            self.robot_description_name,
-            basePosition=base_pos.tolist(),
-            baseOrientation=base_orn.tolist(),
-            physicsClientId=self._client,
-        )
+        第一次呼叫載入 URDF；後續只重置位置和速度，
+        避免每個 episode 重新載入 URDF（主要效能瓶頸）。
+        """
+        if self._robot_id < 0:
+            # 第一次：完整初始化
+            p.resetSimulation(physicsClientId=self._client)
+            self._setup_physics()
+
+            self._plane_id = p.loadURDF(
+                "plane.urdf", physicsClientId=self._client,
+            )
+            p.changeDynamics(
+                self._plane_id, -1,
+                lateralFriction=0.8,
+                restitution=0.0,
+                physicsClientId=self._client,
+            )
+
+            from robot_descriptions.loaders.pybullet import (
+                load_robot_description,
+            )
+            self._robot_id = load_robot_description(
+                self.robot_description_name,
+                basePosition=base_pos.tolist(),
+                baseOrientation=base_orn.tolist(),
+                physicsClientId=self._client,
+            )
+        else:
+            # 後續 episode：只重置位置和速度，不重載 URDF
+            p.resetBasePositionAndOrientation(
+                self._robot_id,
+                base_pos.tolist(),
+                base_orn.tolist(),
+                physicsClientId=self._client,
+            )
+            p.resetBaseVelocity(
+                self._robot_id,
+                [0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0],
+                physicsClientId=self._client,
+            )
     
     def apply_action(self, action: np.ndarray) -> None:
         """應用扭矩控制到主動關節"""
