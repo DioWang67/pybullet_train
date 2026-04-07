@@ -1,0 +1,89 @@
+# Unitree H1 人形機器人配置
+# Unitree H1（via robot_descriptions）
+
+robot_name: h1
+description: "Unitree H1 - 人形雙足行走機器人"
+
+# ── 機器人加載 ──────────────────────────────────────────────────────────────
+robot_description_name: h1_description
+urdf_path: null  # 使用 robot_descriptions 套件
+
+# ── 物理引擎參數 ────────────────────────────────────────────────────────────
+physics:
+  physics_hz: 240           # 物理模擬頻率
+  policy_hz: 60             # 策略執行頻率；substeps = 240 / 60 = 4
+  gravity: -9.81
+  num_solver_iterations: 50
+
+# ── 環境參數 ────────────────────────────────────────────────────────────────
+max_steps: 1000
+torso_min_z: 0.50            # 身體高度 < 0.5 m 視為倒下；正常站立 z≈0.99
+spawn_z: 1.05                # 初始化高度
+plane_friction: 0.8
+foot_friction: 1.5           # H1 腳部設定略高
+
+# ── 機器人結構 ──────────────────────────────────────────────────────────────
+# H1 有 19 個關節，全為可控（無發動機的被動關節）：
+# - 10 個腿部關節（完全控制）
+# - 9 個上身關節（手臂 + 軀幹，通常鎖定在 0）
+
+# 腿部控制關節索引 (可動)
+# 左腿：HipYaw(0), HipRoll(1), HipPitch(2), Knee(3), Ankle(4)
+# 右腿：HipYaw(5), HipRoll(6), HipPitch(7), Knee(8), Ankle(9)
+active_joints: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+# 對應的最大扭矩 (Nm)
+max_torque: [200.0, 200.0, 200.0, 300.0, 40.0, 200.0, 200.0, 200.0, 300.0, 40.0]
+
+# 站立姿態 (全部關節歸零)
+# H1 設計上所有關節歸零時自然站立
+stand_pose:
+  0:  0.0
+  1:  0.0
+  2:  0.0
+  3:  0.0
+  4:  0.0
+  5:  0.0
+  6:  0.0
+  7:  0.0
+  8:  0.0
+  9:  0.0
+  10: 0.0
+  11: 0.0
+  12: 0.0
+  13: 0.0
+  14: 0.0
+  15: 0.0
+  16: 0.0
+  17: 0.0
+  18: 0.0
+
+# 腳部連結索引 (ankle 的 child link)
+feet_link_indices:
+  left: 4
+  right: 9
+
+# 鎖定的關節 (上身/手臂，保持在 0)
+# 關節 10-18 是上身，通常不控制（可選擇鎖定或讓環境忽略）
+lock_joints: [10, 11, 12, 13, 14, 15, 16, 17, 18]
+
+# ── 觀測/動作空間 ────────────────────────────────────────────────────────
+# 自動計算：base(9) + legs(10) + leg_vels(10) + contacts(2) = 31
+obs_dim: 0  # 0 表示自動計算
+action_dim: 0  # 0 表示使用 len(active_joints) = 10
+
+# ── 獎勵參數 ────────────────────────────────────────────────────────────
+reward:
+  alive_bonus: 2.0              # 每步存活獎勵
+  height_reward_scale: 3.0      # (z - 0.50) * 3.0
+  forward_reward_scale: 1.5     # vx * 1.5
+  smooth_penalty_scale: 0.001   # 0.001 * ||torque||²
+  death_penalty: -30.0          # 倒下時的終止懲罰
+
+# ── 額外元資料 ──────────────────────────────────────────────────────────
+metadata:
+  manufacturer: "Unitree"
+  mass_kg: 56.6
+  dof: 19
+  actuated_joints: 10
+  reference: "https://www.unitree.com/cn/h1"

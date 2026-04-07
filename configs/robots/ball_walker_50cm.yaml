@@ -1,0 +1,156 @@
+# Ball-shaped biped robot (~50 cm tall)
+# Based on robots/ball_walker_v2.urdf
+
+robot_name: ball_walker_50cm
+description: "Ball-shaped biped robot, about 50 cm tall"
+robot_description_name: ""
+urdf_path: "robots/ball_walker_v2.urdf"
+
+physics:
+  physics_hz: 500
+  policy_hz: 50
+  gravity: -9.81
+  num_solver_iterations: 50
+
+max_steps: 1000
+torso_min_z: 0.24
+spawn_z: 0.72
+plane_friction: 0.8
+foot_friction: 1.1
+
+# Joint indices in robots/ball_walker_v2.urdf
+# 0 left_hip_abd
+# 1 left_hip_flex
+# 2 left_knee
+# 3 left_ankle
+# 4 right_hip_abd
+# 5 right_hip_flex
+# 6 right_knee
+# 7 right_ankle
+active_joints: [0, 1, 2, 3, 4, 5, 6, 7]
+
+# Matches active_joints order, units: Nm
+max_torque: [120.0, 150.0, 100.0, 60.0, 120.0, 150.0, 100.0, 60.0]
+
+# Nominal crouched standing pose for initial stabilization, units: rad
+stand_pose:
+  0: 0.0
+  1: -0.18
+  2: -0.55
+  3: 0.33
+  4: 0.0
+  5: -0.18
+  6: -0.55
+  7: 0.33
+
+# Foot links correspond to the terminal foot links in the URDF chain
+feet_link_indices:
+  left: 3
+  right: 7
+
+lock_joints: []
+
+obs_dim: 0
+action_dim: 0
+
+reward:
+  alive_bonus: 2.0
+  height_reward_scale: 3.0
+  forward_reward_scale: 1.5
+  smooth_penalty_scale: 0.001
+  death_penalty: -30.0
+
+metadata:
+  version: "v2"
+  morphology: "ball_biped"
+  approximate_height_m: 0.50
+  manufacturer: "TBD"
+  model: "ball_walker_50cm"
+  total_mass_kg: 28.22
+  dof: 8
+  actuated_joints: 8
+
+  frames:
+    base_frame: "torso"
+    left_foot_frame: "left_foot"
+    right_foot_frame: "right_foot"
+
+  geometry:
+    torso_radius_m: 0.25
+    hip_width_m: 0.24
+    thigh_length_m: 0.20
+    shin_length_m: 0.20
+    foot_length_m: 0.14
+    foot_width_m: 0.08
+    foot_height_m: 0.04
+
+  joint_names:
+    0: "left_hip_abd"
+    1: "left_hip_flex"
+    2: "left_knee"
+    3: "left_ankle"
+    4: "right_hip_abd"
+    5: "right_hip_flex"
+    6: "right_knee"
+    7: "right_ankle"
+
+  joint_limits_rad:
+    0: [-0.35, 0.35]
+    1: [-0.87, 0.87]
+    2: [-1.40, 0.0]
+    3: [-0.60, 0.60]
+    4: [-0.35, 0.35]
+    5: [-0.87, 0.87]
+    6: [-1.40, 0.0]
+    7: [-0.60, 0.60]
+
+  max_velocity_rad_s:
+    0: 8.0
+    1: 8.0
+    2: 8.0
+    3: 8.0
+    4: 8.0
+    5: 8.0
+    6: 8.0
+    7: 8.0
+
+  actuator:
+    motor_model: "TBD"
+    driver_model: "TBD"
+    transmission_type: "TBD"
+    command_mode: "torque"
+    control_rate_hz: 500
+    state_rate_hz: 500
+    command_delay_ms: 3.0
+    feedback_delay_ms: 3.0
+
+  sensors:
+    imu:
+      present: true
+      frame: "torso"
+      update_rate_hz: 500
+      delay_ms: 2.0
+    encoder:
+      present: true
+      update_rate_hz: 1000
+      delay_ms: 1.0
+    foot_contact:
+      present: true
+      type: "binary"
+      update_rate_hz: 500
+      delay_ms: 2.0
+
+  safety:
+    e_stop: true
+    startup_pose_required: true
+    torque_limit_scale: 0.5
+    velocity_limit_scale: 0.5
+
+  sim2real:
+    joint_pos_noise_std_rad: 0.002
+    joint_vel_noise_std_rad_s: 0.02
+    friction_range: [0.7, 1.2]
+    motor_strength_range: [0.9, 1.1]
+    latency_range_ms: [1.0, 8.0]
+
+  notes: "Initial config derived from ball_walker_v2 URDF; real hardware values should replace placeholder metadata."

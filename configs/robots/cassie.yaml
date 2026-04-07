@@ -1,0 +1,86 @@
+# Cassie 雙足機器人配置
+# Agility Robotics Cassie（via robot_descriptions）
+
+robot_name: cassie
+description: "Agility Robotics Cassie - 雙足行走機器人"
+
+# ── 機器人加載 ──────────────────────────────────────────────────────────────
+robot_description_name: cassie_description
+urdf_path: null  # 使用 robot_descriptions 套件
+
+# ── 物理引擎參數 ────────────────────────────────────────────────────────────
+physics:
+  physics_hz: 500           # 物理模擬頻率
+  policy_hz: 50             # 策略執行頻率；substeps = 500 / 50 = 10
+  gravity: -9.81
+  num_solver_iterations: 50
+
+# ── 環境參數 ────────────────────────────────────────────────────────────────
+max_steps: 1000
+torso_min_z: 0.60            # 身體高度 < 0.60 m 視為倒下
+spawn_z: 1.00                # 正常站立高度約 0.98 m
+plane_friction: 0.8
+foot_friction: 1.2
+
+# ── 機器人結構 ──────────────────────────────────────────────────────────────
+# Cassie 有 16 個關節，其中 10 個主動（有馬達），6 個被動
+
+# 主動控制關節索引 (effort > 0 in URDF)
+# 左腿：HipRoll(0), HipYaw(1), HipPitch(2), Knee(3), Foot(7)
+# 右腿：HipRoll(8), HipYaw(9), HipPitch(10), Knee(11), Foot(15)
+# 被動關節：L-Shin(4), L-Tarsus(5), L-Achilles(6), R-Shin(12), R-Tarsus(13), R-Achilles(14)
+active_joints: [0, 1, 2, 3, 7, 8, 9, 10, 11, 15]
+
+# 對應的最大扭矩 (Nm)
+# 數據源：Cassie URDF；乘以 0.9 安全係數
+max_torque: [4.5, 4.5, 12.2, 12.2, 0.9, 4.5, 4.5, 12.2, 12.2, 0.9]
+
+# 官方站立姿態 (rad)
+# 由 Cassie 官方提供，通過實驗驗證
+stand_pose:
+  0:  0.0045
+  1:  0.0
+  2:  0.4973
+  3: -1.1997
+  4:  0.0
+  5:  1.4267
+  6:  0.0
+  7: -1.5968
+  8: -0.0045
+  9:  0.0
+  10: 0.4973
+  11: -1.1997
+  12: 0.0
+  13: 1.4267
+  14: 0.0
+  15: -1.5968
+
+# 腳部連結索引（用於接觸檢測）
+feet_link_indices:
+  left: 7
+  right: 15
+
+# 無需鎖定的關節 (Cassie 所有關節都允許動作)
+lock_joints: []
+
+# ── 觀測/動作空間 ────────────────────────────────────────────────────────
+# Cassie 觀測包含所有 16 個關節角度 + 14 個關節速度(10主動+4被動)
+# base(9) + all_joint_pos(16) + joint_vel(14) + contacts(2) = 41
+obs_dim: 41
+action_dim: 10
+
+# ── 獎勵參數 ────────────────────────────────────────────────────────────
+reward:
+  alive_bonus: 2.0              # 每步存活獎勵
+  height_reward_scale: 3.0      # (z - 0.60) * 3.0
+  forward_reward_scale: 1.5     # vx * 1.5
+  smooth_penalty_scale: 0.001   # 0.001 * ||torque||²
+  death_penalty: -30.0          # 倒下時的終止懲罰
+
+# ── 額外元資料 ──────────────────────────────────────────────────────────
+metadata:
+  manufacturer: "Agility Robotics"
+  mass_kg: ~45.0
+  dof: 16
+  actuated_joints: 10
+  reference: "https://www.agilityrobotics.com/cassie"
