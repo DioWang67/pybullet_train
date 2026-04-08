@@ -36,3 +36,11 @@ dmypy.json
 dist/
 build/
 *.egg-info/
+
+# Claude Code memory
+.claude/
+
+# Test outputs
+test_output.txt
+*.pyc
+__pycache__/

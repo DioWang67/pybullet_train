@@ -2,6 +2,7 @@
 Unitree H1 人形機器人走路訓練
 使用 SAC (Soft Actor-Critic)
 
+d:/miniconda/envs/pybullet_env/python.exe train_h1.py   --render
 執行訓練：  python train_h1.py
 看結果：    python train_h1.py --render
 繼續訓練：  python train_h1.py --resume
@@ -35,11 +36,15 @@ os.makedirs(LOG_DIR,   exist_ok=True)
 
 # ── 超參數 ────────────────────────────────────────────────────────────────────
 TOTAL_TIMESTEPS = 1_500_000
-TRAIN_FREQ      = 4
-GRADIENT_STEPS  = 4
-BUFFER_SIZE     = 500_000
-BATCH_SIZE      = 256
+TRAIN_FREQ      = 1
+GRADIENT_STEPS  = 1
+BUFFER_SIZE     = 300_000
+BATCH_SIZE      = 512
 LEARNING_RATE   = 3e-4
+LEARNING_STARTS = 20_000
+TAU             = 0.005
+GAMMA           = 0.99
+ENT_COEF        = "auto_0.05"
 SAVE_FREQ       = 100_000   # 每 100K 步存一次 checkpoint
 
 
@@ -180,6 +185,10 @@ def train(resume: bool = False):
                     "lr_schedule": lambda _: LEARNING_RATE,
                     "train_freq": TRAIN_FREQ,
                     "gradient_steps": GRADIENT_STEPS,
+                    "learning_starts": LEARNING_STARTS,
+                    "tau": TAU,
+                    "gamma": GAMMA,
+                    "ent_coef": ENT_COEF,
                 },
             )
             print(f"已完成步數: {model.num_timesteps:,}\n")
@@ -190,11 +199,13 @@ def train(resume: bool = False):
             learning_rate=LEARNING_RATE,
             buffer_size=BUFFER_SIZE,
             batch_size=BATCH_SIZE,
-            tau=0.005,
-            gamma=0.99,
+            learning_starts=LEARNING_STARTS,
+            tau=TAU,
+            gamma=GAMMA,
+            ent_coef=ENT_COEF,
             train_freq=TRAIN_FREQ,
             gradient_steps=GRADIENT_STEPS,
-            policy_kwargs={"net_arch": [400, 300]},
+            policy_kwargs={"net_arch": [256, 256]},
             verbose=1,
         )
 
@@ -229,12 +240,18 @@ def train(resume: bool = False):
 # ── 渲染測試 ──────────────────────────────────────────────────────────────────
 
 def render_trained():
-    ckpt_path, vn_path = find_latest_checkpoint()
-    if ckpt_path is None:
-        print("找不到模型，請先訓練。")
-        return
-
-    print(f"載入模型: {ckpt_path}.zip")
+    # 優先用 EvalCallback 存的最佳模型
+    best = os.path.join(MODEL_DIR, "best_model.zip")
+    if os.path.exists(best):
+        ckpt_path = os.path.join(MODEL_DIR, "best_model")
+        vn_path   = VECNORM_PATH if os.path.exists(VECNORM_PATH) else None
+        print(f"載入最佳模型: {best}")
+    else:
+        ckpt_path, vn_path = find_latest_checkpoint()
+        if ckpt_path is None:
+            print("找不到模型，請先訓練。")
+            return
+        print(f"載入模型: {ckpt_path}.zip")
     model = SAC.load(ckpt_path)
 
     vec_norm = None
