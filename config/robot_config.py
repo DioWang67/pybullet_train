@@ -39,6 +39,70 @@ class PhysicsConfig:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @dataclass
+class JointRoles:
+    """Semantic joint role → positional index within active_joints.
+
+    This decouples the balance controller from joint index layout, enabling
+    reuse across different biped morphologies (H1, Cassie, custom robots).
+    All indices refer to the *position within active_joints list*, not
+    the underlying URDF joint index.
+
+    Set to None for joints the robot does not have (e.g. a robot with no
+    ankle roll). The balance controller silently skips None roles.
+    """
+    left_hip_roll: Optional[int] = None
+    left_hip_pitch: Optional[int] = None
+    left_knee: Optional[int] = None
+    left_ankle: Optional[int] = None
+    right_hip_roll: Optional[int] = None
+    right_hip_pitch: Optional[int] = None
+    right_knee: Optional[int] = None
+    right_ankle: Optional[int] = None
+
+    def validate(self, n_active: int) -> None:
+        """Ensure all defined roles are within range of active_joints."""
+        for name, idx in asdict(self).items():
+            if idx is None:
+                continue
+            if not (0 <= idx < n_active):
+                raise ValueError(
+                    f"JointRoles.{name}={idx} out of range "
+                    f"for active_joints length {n_active}"
+                )
+
+
+@dataclass
+class BalanceControlConfig:
+    """Stand PD + residual-torque controller parameters.
+
+    The low-level controller drives `stand_pose` with a PD loop and injects
+    pitch/roll feedback through hip and ankle joints (distributed by the
+    `*_gain` weights). The RL policy adds a residual torque on top, scaled
+    by `residual_torque_scale * max_torque`.
+
+    All parameters here are morphology-independent. Per-robot tuning lives
+    in the robot YAML.
+    """
+    # Joint-space PD holding the stand pose
+    stand_kp: float = 120.0
+    stand_kd: float = 8.0
+
+    # Residual torque budget for RL (fraction of max_torque)
+    residual_torque_scale: float = 0.35
+
+    # Body-pitch feedback (drives hip_pitch + ankle on both legs)
+    pitch_kp: float = 45.0
+    pitch_kd: float = 8.0
+    pitch_hip_gain: float = 0.25
+    pitch_ankle_gain: float = 0.35
+
+    # Body-roll feedback (drives hip_roll differentially)
+    roll_kp: float = 10.0
+    roll_kd: float = 2.0
+    roll_hip_gain: float = 0.5
+
+
+@dataclass
 class RewardConfig:
     """獎勵函數係數"""
     alive_bonus: float = 2.0
@@ -52,7 +116,22 @@ class RewardConfig:
     
     smooth_penalty_scale: float = 0.001
     """扭矩平滑懲罰係數: penalty = scale * ||torque||²"""
-    
+
+    posture_penalty_scale: float = 0.0
+    """姿態誤差懲罰: penalty = scale * (pitch^2 + roll^2)"""
+
+    vertical_velocity_penalty_scale: float = 0.0
+    """垂直速度懲罰: penalty = scale * vz^2"""
+
+    angular_velocity_penalty_scale: float = 0.0
+    """角速度懲罰: penalty = scale * ||omega||^2"""
+
+    pitch_termination: float = float("inf")
+    """pitch 終止門檻 (rad)"""
+
+    roll_termination: float = float("inf")
+    """roll 終止門檻 (rad)"""
+
     death_penalty: float = -30.0
     """倒下時的終止懲罰"""
 
@@ -115,14 +194,20 @@ class RobotConfig:
     
     lock_joints: List[int] = field(default_factory=list)
     """需要鎖定的關節 (e.g., 手臂) 為空表示無"""
-    
+
+    joint_roles: JointRoles = field(default_factory=JointRoles)
+    """語意關節角色映射 (生成 balance controller 用，跨機器人共享)"""
+
+    balance_control: BalanceControlConfig = field(default_factory=BalanceControlConfig)
+    """Stand PD + residual-torque 控制器參數"""
+
     # ── 觀測/動作空間 ────────────────────────────────────────────────────────
     obs_dim: int = 0
-    """觀測空間維度 (auto-computed if 0)"""
-    
+    """觀測空間維度 (0 → 由 __post_init__ 從 active_joints 自動推算)"""
+
     action_dim: int = 0
-    """動作空間維度 (= len(active_joints))"""
-    
+    """動作空間維度 (0 → 由 __post_init__ 設為 len(active_joints))"""
+
     # ── 獎勵配置 ────────────────────────────────────────────────────────────
     reward: RewardConfig = field(default_factory=RewardConfig)
     """獎勵函數係數"""
@@ -149,6 +234,10 @@ class RobotConfig:
             # Default computation: base(9) + joint_angles(n) + joint_vels(m) + contacts(2)
             num_joints = len(self.active_joints) if self.active_joints else 0
             self.obs_dim = 9 + num_joints + num_joints + 2
+
+        # Validate joint roles against active_joints length.
+        if self.active_joints:
+            self.joint_roles.validate(len(self.active_joints))
     
     def to_dict(self) -> Dict[str, Any]:
         """轉換為字典 (便於 YAML export)"""

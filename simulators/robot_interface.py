@@ -29,25 +29,19 @@ class RobotInterface(ABC):
     @abstractmethod
     def reset(self, base_pos: np.ndarray, base_orn: np.ndarray) -> None:
         """
-        重設機器人到初始位置
-        
+        重設機器人 base 位置/方向/速度。
+
+        重要合約：此方法 **不重置關節位置/速度**。
+        子類別的環境 (`WalkingEnv._init_robot`) 必須在 `reset()` 後
+        呼叫 `reset_joint_state(stand_pose)` 才能保證 episode 起點乾淨。
+        若忘記呼叫，前一個 episode 的關節速度會直接帶到下一個 episode。
+
         Args:
             base_pos: 軀幹位置 [x, y, z]
             base_orn: 軀幹方向 [qx, qy, qz, qw] (quaternion)
         """
         pass
-    
-    @abstractmethod
-    def apply_action(self, action: np.ndarray) -> None:
-        """
-        應用控制動作到機器人
-        
-        Args:
-            action: 標準化動作 array
-                    格式由環境定義（通常是 [-1, 1] 扭矩或位置）
-        """
-        pass
-    
+
     @abstractmethod
     def step(self) -> None:
         """執行一個模擬/控制步"""
@@ -273,11 +267,6 @@ class PyBulletRobotSimulator(RobotInterface):
                 physicsClientId=self._client,
             )
     
-    def apply_action(self, action: np.ndarray) -> None:
-        """應用扭矩控制到主動關節"""
-        # This is implemented by environment; simulator just holds state
-        pass
-    
     def step(self) -> None:
         """執行一單位物理模擬步"""
         p.stepSimulation(physicsClientId=self._client)
@@ -435,7 +424,10 @@ class PyBulletRobotSimulator(RobotInterface):
         """重設關節到指定位置"""
         for j, angle in joint_pos_dict.items():
             p.resetJointState(
-                self._robot_id, j, angle,
+                self._robot_id,
+                j,
+                angle,
+                targetVelocity=0.0,
                 physicsClientId=self._client,
             )
     
@@ -462,8 +454,19 @@ class PyBulletRobotSimulator(RobotInterface):
                 j,
                 controlMode=p.POSITION_CONTROL,
                 targetPosition=0.0,
-                positionGain=50.0,   # 高剛度，防止上半身下垂
-                velocityGain=5.0,
-                force=500.0,
+                positionGain=0.5,
+                velocityGain=0.1,
+                force=300.0,
                 physicsClientId=self._client,
             )
+
+    def get_num_joints(self) -> int:
+        """獲取關節總數"""
+        return p.getNumJoints(self._robot_id, physicsClientId=self._client)
+
+    def get_joint_name(self, joint_index: int) -> str:
+        """獲取關節的 child link 名稱"""
+        info = p.getJointInfo(
+            self._robot_id, joint_index, physicsClientId=self._client
+        )
+        return info[12].decode()

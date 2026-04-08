@@ -18,8 +18,9 @@ import argparse
 import logging
 
 from .robot_config import (
-    RobotConfig, PhysicsConfig, RewardConfig, TrainingConfig, 
-    SACConfig, VecNormalizeConfig, CallbackConfig
+    RobotConfig, PhysicsConfig, RewardConfig, TrainingConfig,
+    SACConfig, VecNormalizeConfig, CallbackConfig,
+    JointRoles, BalanceControlConfig,
 )
 
 logger = logging.getLogger(__name__)
@@ -96,9 +97,55 @@ class ConfigBuilder:
             height_reward_scale=reward_data.get("height_reward_scale", 3.0),
             forward_reward_scale=reward_data.get("forward_reward_scale", 1.5),
             smooth_penalty_scale=reward_data.get("smooth_penalty_scale", 0.001),
+            posture_penalty_scale=reward_data.get("posture_penalty_scale", 0.0),
+            vertical_velocity_penalty_scale=reward_data.get(
+                "vertical_velocity_penalty_scale", 0.0
+            ),
+            angular_velocity_penalty_scale=reward_data.get(
+                "angular_velocity_penalty_scale", 0.0
+            ),
+            pitch_termination=reward_data.get("pitch_termination", float("inf")),
+            roll_termination=reward_data.get("roll_termination", float("inf")),
             death_penalty=reward_data.get("death_penalty", -30.0),
         )
     
+    @staticmethod
+    def build_joint_roles(data: Dict[str, Any]) -> JointRoles:
+        """Build JointRoles from YAML. Missing fields default to None."""
+        roles_data = data.get("joint_roles", {}) or {}
+        return JointRoles(
+            left_hip_roll=roles_data.get("left_hip_roll"),
+            left_hip_pitch=roles_data.get("left_hip_pitch"),
+            left_knee=roles_data.get("left_knee"),
+            left_ankle=roles_data.get("left_ankle"),
+            right_hip_roll=roles_data.get("right_hip_roll"),
+            right_hip_pitch=roles_data.get("right_hip_pitch"),
+            right_knee=roles_data.get("right_knee"),
+            right_ankle=roles_data.get("right_ankle"),
+        )
+
+    @staticmethod
+    def build_balance_control(data: Dict[str, Any]) -> BalanceControlConfig:
+        """Build BalanceControlConfig from YAML. Missing fields use dataclass defaults."""
+        bc_data = data.get("balance_control", {}) or {}
+        defaults = BalanceControlConfig()
+        return BalanceControlConfig(
+            stand_kp=bc_data.get("stand_kp", defaults.stand_kp),
+            stand_kd=bc_data.get("stand_kd", defaults.stand_kd),
+            residual_torque_scale=bc_data.get(
+                "residual_torque_scale", defaults.residual_torque_scale
+            ),
+            pitch_kp=bc_data.get("pitch_kp", defaults.pitch_kp),
+            pitch_kd=bc_data.get("pitch_kd", defaults.pitch_kd),
+            pitch_hip_gain=bc_data.get("pitch_hip_gain", defaults.pitch_hip_gain),
+            pitch_ankle_gain=bc_data.get(
+                "pitch_ankle_gain", defaults.pitch_ankle_gain
+            ),
+            roll_kp=bc_data.get("roll_kp", defaults.roll_kp),
+            roll_kd=bc_data.get("roll_kd", defaults.roll_kd),
+            roll_hip_gain=bc_data.get("roll_hip_gain", defaults.roll_hip_gain),
+        )
+
     @staticmethod
     def build_robot_config(data: Dict[str, Any]) -> RobotConfig:
         """從 YAML 字典構建 RobotConfig"""
@@ -118,6 +165,8 @@ class ConfigBuilder:
             stand_pose=data.get("stand_pose", {}),
             feet_link_indices=data.get("feet_link_indices", {}),
             lock_joints=data.get("lock_joints", []),
+            joint_roles=ConfigBuilder.build_joint_roles(data),
+            balance_control=ConfigBuilder.build_balance_control(data),
             obs_dim=data.get("obs_dim", 0),
             action_dim=data.get("action_dim", 0),
             reward=ConfigBuilder.build_reward(data),

@@ -10,6 +10,8 @@ Exports:
 from .robot_config import (
     PhysicsConfig,
     RewardConfig,
+    JointRoles,
+    BalanceControlConfig,
     RobotConfig,
     SACConfig,
     VecNormalizeConfig,
@@ -31,6 +33,8 @@ __all__ = [
     # Configs
     "PhysicsConfig",
     "RewardConfig",
+    "JointRoles",
+    "BalanceControlConfig",
     "RobotConfig",
     "SACConfig",
     "VecNormalizeConfig",
